@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>All Bookings — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css" />
+<style>
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(10,10,12,0.7); display: flex;
+    align-items: center; justify-content: center; padding: 20px; z-index: 100;
+  }
+  .modal-backdrop.hidden { display: none; }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 700px) { .modal-grid { grid-template-columns: 1fr; } }
+  .filter-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; align-items: end; }
+  .filter-row .field { margin-bottom: 0; }
+
+  /* Service / parts detail section inside modal */
+  .detail-section { margin-bottom: 20px; }
+  .detail-section h3 { margin-bottom: 8px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+  .tag-empty { color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<main class="app-main">
+  <div class="page-head">
+    <div><span class="eyebrow">// admin</span><h1>All Bookings</h1></div>
+  </div>
+
+  <div class="stat-row" id="stat-row"></div>
+
+  <div class="filter-row">
+    <div class="field" style="max-width:280px">
+      <label>Search</label>
+      <input type="text" id="search-box" placeholder="Booking code, customer, reg no…" />
+    </div>
+    <div class="field" style="max-width:180px">
+      <label>Booking status</label>
+      <select id="status-filter">
+        <option value="">All</option>
+        <option value="Pending">Pending</option>
+        <option value="Approved">Approved</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="field" style="max-width:180px">
+      <label>Payment</label>
+      <select id="payment-filter">
+        <option value="">All</option>
+        <option value="Pending">Pending</option>
+        <option value="Completed">Completed</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</main>
+
+<!-- Verify / update modal -->
+<div class="modal-backdrop hidden" id="modal">
+  <div class="card card-wide">
+    <div class="ticket-head">
+      <h2 class="mt-0" style="margin:0">Manage booking <span class="mono" id="modal-code"></span></h2>
+      <button class="btn btn-outline btn-sm" id="modal-close">Close</button>
+    </div>
+    <div id="modal-alert" class="alert"></div>
+
+    <!-- Customer's requested service types / parts -->
+    <div class="detail-section">
+      <h3>Service requested</h3>
+      <div class="tag-list" id="modal-service-types"></div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Parts / accessories requested</h3>
+      <div class="tag-list" id="modal-parts-required"></div>
+    </div>
+
+    <div class="modal-grid">
+      <div>
+        <h3>Booking status</h3>
+        <form id="status-form">
+          <div class="field">
+            <label>Status</label>
+            <select name="booking_status">
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Update booking status</button>
+        </form>
+      </div>
+
+      <div>
+        <h3>Service status</h3>
+        <form id="service-form">
+          <div class="field">
+            <label>Servicing status</label>
+            <select name="servicing_status">
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Payment mode</label>
+            <select name="payment_mode">
+              <option value="">—</option>
+              <option value="Wallet">Wallet</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Servicing fee (Rs)</label>
+            <input type="number" name="servicing_fee" min="50" step="50" />
+          </div>
+          <div class="field">
+            <label>Mechanic notes</label>
+            <textarea name="mechanic_notes" placeholder="e.g. Brake oil changed. Battery cleaned. Chain adjusted."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Update service status</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  requireRole("admin");
+  const content = document.getElementById("content");
+  const statRow = document.getElementById("stat-row");
+  const modal = document.getElementById("modal");
+  const modalCode = document.getElementById("modal-code");
+  const modalAlert = document.getElementById("modal-alert");
+  const modalServiceTypes = document.getElementById("modal-service-types");
+  const modalPartsRequired = document.getElementById("modal-parts-required");
+  const statusForm = document.getElementById("status-form");
+  const serviceForm = document.getElementById("service-form");
+  const searchBox = document.getElementById("search-box");
+  const statusFilter = document.getElementById("status-filter");
+  const paymentFilter = document.getElementById("payment-filter");
+  let activeBookingId = null;
+  let allBookings = [];
+
+  function renderTags(el, items) {
+    if (!items || !items.length) {
+      el.innerHTML = `<span class="tag-empty">None selected</span>`;
+      return;
+    }
+    el.innerHTML = items.map(i => `<span class="tag">${i}</span>`).join("");
+  }
+
+  function renderStats(bookings) {
+    const pending = bookings.filter(b => b.booking_status === "Pending").length;
+    const approved = bookings.filter(b => b.booking_status === "Approved").length;
+    const completed = bookings.filter(b => b.servicing_status === "Completed").length;
+    const revenue = bookings.filter(b => b.payment_status === "Completed").reduce((s, b) => s + Number(b.servicing_fee), 0);
+    statRow.innerHTML = `
+      <div class="stat-box"><strong>${bookings.length}</strong><span>Total bookings</span></div>
+      <div class="stat-box"><strong>${pending}</strong><span>Pending approval</span></div>
+      <div class="stat-box"><strong>${approved}</strong><span>Approved</span></div>
+      <div class="stat-box"><strong>${completed}</strong><span>Services completed</span></div>
+      <div class="stat-box"><strong>${fmtMoney(revenue)}</strong><span>Revenue collected</span></div>
+    `;
+  }
+
+  function renderTable(bookings) {
+    if (!bookings.length) {
+      content.innerHTML = `<div class="empty-state">No bookings match.</div>`;
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Booking Id</th><th>Bike</th><th>Company</th><th>Reg No</th>
+              <th>Customer</th><th>Contact</th><th>Requested Date</th>
+              <th>Booking Status</th><th>Servicing</th><th>Fee</th>
+              <th>Payment Mode</th><th>Payment</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bookings.map(b => `
+              <tr>
+                <td class="mono">${b.booking_code}</td>
+                <td>${b.bike_name}</td>
+                <td>${b.company}</td>
+                <td class="mono">${b.registration_number}</td>
+                <td>${b.customer_name}</td>
+                <td>${b.customer_contact || "—"}</td>
+                <td>${b.service_date}</td>
+                <td><span class="badge ${badgeClass(b.booking_status)}">${b.booking_status}</span></td>
+                <td><span class="badge ${badgeClass(b.servicing_status)}">${b.servicing_status}</span></td>
+                <td>${fmtMoney(b.servicing_fee)}</td>
+                <td>${b.payment_mode || "—"}</td>
+                <td><span class="badge ${badgeClass(b.payment_status)}">${b.payment_status}</span></td>
+                <td><button class="btn btn-outline btn-sm" data-manage="${b.id}" ${(b.servicing_status === "Completed" && b.payment_status === "Completed") ? "disabled" : ""}>Manage</button></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>`;
+
+    content.querySelectorAll("[data-manage]").forEach((btn) => {
+      btn.addEventListener("click", () => openModal(btn.dataset.manage, allBookings));
+    });
+  }
+
+  function applyFilters() {
+    const q = searchBox.value.trim().toLowerCase();
+    const statusVal = statusFilter.value;
+    const paymentVal = paymentFilter.value;
+
+    const filtered = allBookings.filter((b) => {
+      const matchesSearch = !q || `${b.booking_code} ${b.customer_name} ${b.registration_number}`.toLowerCase().includes(q);
+      const matchesStatus = !statusVal || b.booking_status === statusVal;
+      const matchesPayment = !paymentVal || b.payment_status === paymentVal;
+      return matchesSearch && matchesStatus && matchesPayment;
+    });
+
+    renderTable(filtered);
+  }
+
+  searchBox.addEventListener("input", applyFilters);
+  statusFilter.addEventListener("change", applyFilters);
+  paymentFilter.addEventListener("change", applyFilters);
+
+  async function load() {
+    allBookings = await apiFetch("/api/bookings");
+    renderStats(allBookings);
+
+    if (!allBookings.length) {
+      content.innerHTML = `<div class="empty-state">No bookings yet.</div>`;
+      return;
+    }
+
+    applyFilters();
+  }
+
+  function updateServiceSubmitState() {
+  const submitBtn = serviceForm.querySelector("button[type=submit]");
+  const fieldsEnabled = !serviceForm.servicing_status.disabled;
+  const mode = serviceForm.payment_mode.value;
+  const fee = Number(serviceForm.servicing_fee.value);
+  // No payment mode chosen yet = fine, servicing can be marked done with payment still pending.
+  // But if a mode IS chosen, the fee must actually be valid before it can be submitted.
+  const paymentOk = mode === "" || fee >= 50;
+  submitBtn.disabled = !(fieldsEnabled && paymentOk);
+}
+
+  function openModal(bookingId, bookings) {
+    const booking = bookings.find(b => b.id === bookingId);
+    activeBookingId = bookingId;
+    modalCode.textContent = `#${booking.booking_code}`;
+    modalAlert.classList.remove("show");
+    statusForm.booking_status.value = booking.booking_status;
+    serviceForm.servicing_status.value = booking.servicing_status;
+    serviceForm.payment_mode.value = booking.payment_mode || "";
+    serviceForm.servicing_fee.value = booking.servicing_fee;
+    serviceForm.mechanic_notes.value = booking.mechanic_notes || "";
+
+    renderTags(modalServiceTypes, booking.service_types);
+    renderTags(modalPartsRequired, booking.parts_required);
+
+    const isApproved = booking.booking_status === "Approved";
+    serviceForm.querySelectorAll("select, input, textarea").forEach((el) => (el.disabled = !isApproved));
+    if (!isApproved) {
+      showAlert(modalAlert, "Approve this booking first before updating service/payment details.", "info");
+    }
+    updateServiceSubmitState();
+
+    modal.classList.remove("hidden");
+  }
+
+  document.getElementById("modal-close").addEventListener("click", () => modal.classList.add("hidden"));
+
+  statusForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch(`/api/bookings/${activeBookingId}/status`, {
+        method: "PATCH",
+        body: { booking_status: statusForm.booking_status.value },
+      });
+      modal.classList.add("hidden");
+      load();
+    } catch (err) {
+      showAlert(modalAlert, err.message);
+    }
+  });
+
+  serviceForm.payment_mode.addEventListener("change", updateServiceSubmitState);
+  serviceForm.servicing_fee.addEventListener("input", updateServiceSubmitState);
+
+  serviceForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const mode = serviceForm.payment_mode.value;
+  const fee = Number(serviceForm.servicing_fee.value);
+  const paymentOk = mode === "" || fee >= 50;
+  if (serviceForm.servicing_status.disabled || !paymentOk) {
+    showAlert(modalAlert, "Approve the booking first, and if you're recording a payment, set a fee above ₹50.");
+    return;
+  }
+  try {
+      const fd = new FormData(serviceForm);
+      const body = { servicing_status: fd.get("servicing_status") };
+      if (fd.get("payment_mode")) body.payment_mode = fd.get("payment_mode");
+      if (fd.get("servicing_fee") !== "") body.servicing_fee = Number(fd.get("servicing_fee"));
+      body.mechanic_notes = fd.get("mechanic_notes") || "";
+      await apiFetch(`/api/bookings/${activeBookingId}/service`, { method: "PATCH", body });
+      modal.classList.add("hidden");
+      load();
+    } catch (err) {
+      showAlert(modalAlert, err.message);
+    }
+  });
+
+  load();
+</script>
+</body>
+</html>

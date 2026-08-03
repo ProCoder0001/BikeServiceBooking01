@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login — Bike Service Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<div class="auth-wrap">
+  <div class="card card-narrow">
+    <h2>Welcome back</h2>
+    <p class="subtitle">Login to manage your bikes and bookings.</p>
+
+    <div class="role-toggle">
+      <button type="button" class="active" data-role="customer">Customer</button>
+      <button type="button" data-role="admin">Admin</button>
+    </div>
+
+    <div id="alert" class="alert"></div>
+
+    <form id="login-form">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="email" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" required />
+        <p>
+           <a href="forgot-password.html">
+               Forgot Password?
+           </a>
+        </p>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Login</button>
+      <div class="form-foot">No account yet? <a href="/register.html">Register</a></div>
+    </form>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  let role = "customer";
+  document.querySelectorAll(".role-toggle button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".role-toggle button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      role = btn.dataset.role;
+    });
+  });
+
+  const form = document.getElementById("login-form");
+  const alertEl = document.getElementById("alert");
+  const submitBtn = document.getElementById("submit-btn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertEl.classList.remove("show");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Logging in…";
+
+    const fd = new FormData(form);
+    const payload = { role, email: fd.get("email"), password: fd.get("password") };
+
+    try {
+      const data = await apiFetch("/api/auth/login", { method: "POST", body: payload, auth: false });
+      Session.setSession(data.access_token, data.user);
+      window.location.href = role === "admin" ? "/admin/all-bookings.html" : "/customer/my-bikes.html";
+    } catch (err) {
+      showAlert(alertEl, err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Login";
+    }
+  });
+</script>
+</body>
+</html>
