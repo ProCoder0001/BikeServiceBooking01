@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Bookings — Bike Service Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css" />
+<style>
+  .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+  .ticket-subhead {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .mechanic-notes {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<main class="app-main">
+  <div class="page-head">
+    <div><span class="eyebrow">// customer</span><h1>My Bookings</h1></div>
+    <a href="/customer/book-service.html" class="btn btn-primary btn-sm">+ Book service</a>
+  </div>
+
+  <div id="content"></div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+  requireRole("customer");
+  const content = document.getElementById("content");
+
+  function tagList(items) {
+    if (!items || !items.length) return "";
+    return `<div class="tag-list">${items.map(i => `<span class="tag">${i}</span>`).join("")}</div>`;
+  }
+
+  async function load() {
+    const bookings = await apiFetch("/api/bookings/mine");
+    if (!bookings.length) {
+      content.innerHTML = `<div class="empty-state">No bookings yet. <a href="/customer/book-service.html">Book your first service</a>.</div>`;
+      return;
+    }
+    content.innerHTML = bookings.map(b => `
+      <div class="ticket">
+        <div class="ticket-head">
+          <span class="ticket-code">#${b.booking_code}</span>
+          <span class="badge ${badgeClass(b.booking_status)}">${b.booking_status}</span>
+        </div>
+        <div class="ticket-grid">
+          <div><span>Bike</span><strong>${b.bike_name} (${b.company})</strong></div>
+          <div><span>Registration</span><strong>${b.registration_number}</strong></div>
+          <div><span>Requested date</span><strong>${b.service_date}</strong></div>
+          <div><span>Servicing</span><strong>${b.servicing_status}</strong></div>
+          <div><span>Fee</span><strong>${fmtMoney(b.servicing_fee)}</strong></div>
+          <div><span>Payment</span><strong>${b.payment_mode || "—"} · ${b.payment_status}</strong></div>
+        </div>
+
+        ${b.service_types && b.service_types.length ? `
+          <div class="ticket-subhead">Service requested</div>
+          ${tagList(b.service_types)}
+        ` : ""}
+
+        ${b.parts_required && b.parts_required.length ? `
+          <div class="ticket-subhead">Parts / accessories requested</div>
+          ${tagList(b.parts_required)}
+        ` : ""}
+
+        ${b.mechanic_notes ? `
+          <div class="ticket-subhead">Mechanic notes</div>
+          <div class="mechanic-notes">${b.mechanic_notes}</div>
+        ` : ""}
+
+        ${b.payment_status === "Completed" ? `<button class="btn btn-outline btn-sm" data-invoice="${b.id}" data-code="${b.booking_code}">Download receipt</button>` : ""}
+      </div>
+    `).join("");
+
+    content.querySelectorAll("[data-invoice]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        try {
+          await downloadFile(`/api/bookings/${btn.dataset.invoice}/invoice`, `invoice-${btn.dataset.code}.pdf`);
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    });
+  }
+
+  load();
+</script>
+</body>
+</html>

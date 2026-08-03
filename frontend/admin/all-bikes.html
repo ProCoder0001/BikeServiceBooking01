@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>All Bikes — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<main class="app-main">
+  <div class="page-head">
+    <div><span class="eyebrow">// admin</span><h1>All Bikes</h1></div>
+  </div>
+  <div id="content"></div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+  requireRole("admin");
+  const content = document.getElementById("content");
+
+  async function load() {
+    const bikes = await apiFetch("/api/bikes");
+    if (!bikes.length) {
+      content.innerHTML = `<div class="empty-state">No bikes have been added yet.</div>`;
+      return;
+    }
+    content.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Bike Name</th><th>Company</th><th>Model No</th><th>Registration No</th><th>Owner</th><th>Owner Contact</th></tr></thead>
+          <tbody>
+            ${bikes.map(b => `
+              <tr>
+                <td>${b.bike_name}</td>
+                <td>${b.company}</td>
+                <td class="mono">${b.model_number}</td>
+                <td class="mono">${b.registration_number}</td>
+                <td>${b.owner_name || "—"}</td>
+                <td>${b.owner_contact || "—"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  load();
+</script>
+</body>
+</html>

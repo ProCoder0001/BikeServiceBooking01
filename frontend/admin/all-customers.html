@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>All Customers — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<main class="app-main">
+  <div class="page-head">
+    <div><span class="eyebrow">// admin</span><h1>All Customers</h1></div>
+  </div>
+  <div class="field" style="max-width:320px">
+    <input type="text" id="search-box" placeholder="Search by name, email, or city…" />
+  </div>
+  <div id="content"></div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+  requireRole("admin");
+  const content = document.getElementById("content");
+  const searchBox = document.getElementById("search-box");
+  let allCustomers = [];
+
+  function renderTable(customers) {
+    if (!customers.length) {
+      content.innerHTML = `<div class="empty-state">No customers match.</div>`;
+      return;
+    }
+    content.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>First Name</th><th>Last Name</th><th>Email</th><th>Phone No</th><th>City</th><th>Address</th></tr></thead>
+          <tbody>
+            ${customers.map(c => `
+              <tr>
+                <td>${c.first_name}</td>
+                <td>${c.last_name}</td>
+                <td>${c.email}</td>
+                <td>${c.contact_no || "—"}</td>
+                <td>${c.city || "—"}</td>
+                <td>${[c.street, c.pincode].filter(Boolean).join(", ") || "—"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function applySearch() {
+    const q = searchBox.value.trim().toLowerCase();
+    if (!q) {
+      renderTable(allCustomers);
+      return;
+    }
+    const filtered = allCustomers.filter((c) =>
+      `${c.first_name} ${c.last_name} ${c.email} ${c.city || ""}`.toLowerCase().includes(q)
+    );
+    renderTable(filtered);
+  }
+
+  searchBox.addEventListener("input", applySearch);
+
+  async function load() {
+    allCustomers = await apiFetch("/api/users/customers");
+    if (!allCustomers.length) {
+      content.innerHTML = `<div class="empty-state">No customers have registered yet.</div>`;
+      return;
+    }
+    renderTable(allCustomers);
+  }
+
+  load();
+</script>
+</body>
+</html>

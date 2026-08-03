@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Wallet — Bike Service Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css" />
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<main class="app-main">
+  <div class="page-head">
+    <div><span class="eyebrow">// customer</span><h1>My Wallet</h1></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <p class="subtitle">Current balance</p>
+      <h2 id="balance" style="font-size:2.4rem; color:var(--accent)">Rs 0.00</h2>
+      <p>Used automatically when you pay for a completed service by wallet.</p>
+    </div>
+
+    <div class="card">
+      <h2>Add money</h2>
+      <div id="alert" class="alert"></div>
+      <form id="topup-form">
+        <div class="field">
+          <label>Amount (Rs)</label>
+          <input type="number" name="amount" min="1" step="0.01" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Update wallet</button>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+  requireRole("customer");
+
+  const balanceEl = document.getElementById("balance");
+  const alertEl = document.getElementById("alert");
+  const form = document.getElementById("topup-form");
+  const submitBtn = document.getElementById("submit-btn");
+
+  async function loadWallet() {
+    const data = await apiFetch("/api/wallet");
+    balanceEl.textContent = fmtMoney(data.wallet_balance);
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertEl.classList.remove("show");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Starting payment…";
+
+    try {
+      const fd = new FormData(form);
+      const amount = Number(fd.get("amount"));
+
+      // 1. Ask our backend to create a Razorpay order (amount is verified server-side)
+      const order = await apiFetch("/api/payments/create-order", {
+        method: "POST",
+        body: { amount },
+      });
+
+      const user = Session.getUser();
+
+      // 2. Open Razorpay's checkout with that order
+      const rzp = new Razorpay({
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.order_id,
+        name: "Bike Service Booking",
+        description: "Wallet top-up",
+        prefill: {
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email,
+          contact: user.contact_no || "",
+        },
+        theme: { color: "#0f766e" },
+        handler: async function (response) {
+          // 3. Send Razorpay's response to our backend to verify the signature
+          try {
+            submitBtn.textContent = "Verifying payment…";
+            const data = await apiFetch("/api/payments/verify", {
+              method: "POST",
+              body: {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+            });
+            balanceEl.textContent = fmtMoney(data.wallet_balance);
+            showAlert(alertEl, "Payment successful — wallet updated.", "success");
+            form.reset();
+          } catch (err) {
+            showAlert(alertEl, err.message);
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Update wallet";
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Update wallet";
+          },
+        },
+      });
+
+      rzp.on("payment.failed", function (response) {
+        showAlert(alertEl, response.error.description || "Payment failed.");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Update wallet";
+      });
+
+      rzp.open();
+    } catch (err) {
+      showAlert(alertEl, err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Update wallet";
+    }
+  });
+
+  loadWallet();
+</script>
+</body>
+</html>
