@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Add Bike — Bike Service Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<main class="app-main">
+  <div class="page-head">
+    <div><span class="eyebrow">// customer</span><h1>Add a bike</h1></div>
+  </div>
+
+  <div class="card card-narrow" style="margin:0">
+    <div id="alert" class="alert"></div>
+    <form id="bike-form">
+      <div class="field">
+        <label>Bike name</label>
+        <input type="text" name="bike_name" required />
+      </div>
+      <div class="field">
+        <label>Company</label>
+        <input type="text" name="company" required />
+      </div>
+      <div class="field">
+        <label>Model number</label>
+        <input type="text" name="model_number" required />
+      </div>
+      <div class="field">
+        <label>Registration number</label>
+        <input type="text" name="registration_number" required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Add bike</button>
+    </form>
+  </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+  requireRole("customer");
+  const form = document.getElementById("bike-form");
+  const alertEl = document.getElementById("alert");
+  const submitBtn = document.getElementById("submit-btn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertEl.classList.remove("show");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Adding…";
+    const fd = new FormData(form);
+    const payload = Object.fromEntries(fd.entries());
+    try {
+      await apiFetch("/api/bikes", { method: "POST", body: payload });
+      window.location.href = "/customer/my-bikes.html";
+    } catch (err) {
+      showAlert(alertEl, err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Add bike";
+    }
+  });
+</script>
+</body>
+</html>

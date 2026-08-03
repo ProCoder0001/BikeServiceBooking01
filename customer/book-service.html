@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Book Service — Bike Service Booking</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="../css/style.css" />
+
+  <style>
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .option-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: .3s;
+    }
+
+    .option-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+    }
+
+    .option-card input {
+      margin-right: 8px;
+    }
+
+    .section-title {
+      margin-top: 25px;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+  </style>
+
+</head>
+
+
+<body>
+
+
+  <header class="site-header">
+
+    <nav class="nav">
+
+      <a href="/index.html" class="brand">
+        <span class="dot"></span>
+        Bike Service Booking
+      </a>
+
+      <div class="nav-links" id="nav-links"></div>
+
+    </nav>
+
+  </header>
+
+
+
+  <main class="app-main">
+
+
+    <div class="page-head">
+
+      <div>
+        <span class="eyebrow">// customer</span>
+        <h1>Book a Service</h1>
+      </div>
+
+    </div>
+
+
+
+    <div class="card card-narrow">
+
+
+      <div id="alert" class="alert"></div>
+
+
+      <div id="no-bikes" class="empty-state hidden">
+
+        You need to
+        <a href="/customer/add-bike.html">
+          add a bike
+        </a>
+        before booking a service.
+
+      </div>
+
+
+
+
+      <form id="booking-form" class="hidden">
+
+
+
+        <div class="field">
+
+          <label>
+            Select Bike
+          </label>
+
+          <select name="bike_id" id="bike-select" required>
+
+          </select>
+
+        </div>
+
+
+
+
+        <div class="field">
+
+          <label>
+            Service Date
+          </label>
+
+          <input type="date" name="service_date" required />
+
+        </div>
+
+
+
+
+
+        <h3 class="section-title">
+          Service Required
+        </h3>
+
+
+        <div class="option-grid">
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="service_types" value="General Service">
+
+            General Service
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="service_types" value="Full Service">
+
+            Full Service
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="service_types" value="Oil Change">
+
+            Oil Change
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="service_types" value="Brake Service">
+
+            Brake Service
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="service_types" value="Tyre Replacement">
+
+            Tyre Replacement
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="service_types" value="Battery Replacement">
+
+            Battery Replacement
+
+          </label>
+
+
+
+        </div>
+
+
+
+
+
+        <h3 class="section-title">
+          Parts / Accessories Required
+        </h3>
+
+
+
+        <div class="option-grid">
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Engine Oil">
+
+            Engine Oil
+
+          </label>
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Oil Filter">
+
+            Oil Filter
+
+          </label>
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Brake Pad">
+
+            Brake Pad
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Tyre">
+
+            Tyre
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Battery">
+
+            Battery
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Seat Cover">
+
+            Seat Cover
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Handle Cover">
+
+            Handle Cover
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Headlight">
+
+            Headlight
+
+          </label>
+
+
+
+          <label class="option-card">
+
+            <input type="checkbox" name="parts_required" value="Indicator">
+
+            Indicator
+
+          </label>
+
+
+        </div>
+
+
+
+
+
+        <button type="submit" class="btn btn-primary btn-block" id="submit-btn">
+
+          Book Service
+
+        </button>
+
+
+
+      </form>
+
+
+    </div>
+
+
+  </main>
+
+
+
+
+  <script src="../js/api.js"></script>
+
+
+
+  <script>
+
+
+    requireRole("customer");
+
+
+    const alertEl = document.getElementById("alert");
+
+    const form = document.getElementById("booking-form");
+
+    const noBikes = document.getElementById("no-bikes");
+
+    const bikeSelect = document.getElementById("bike-select");
+
+    const submitBtn = document.getElementById("submit-btn");
+
+
+    const dateInput = form.querySelector(
+      'input[name="service_date"]'
+    );
+
+
+    dateInput.min =
+      new Date()
+        .toISOString()
+        .split("T")[0];
+
+
+
+
+
+    async function loadBikes() {
+
+
+      const bikes =
+        await apiFetch("/api/bikes/mine");
+
+
+
+      if (!bikes.length) {
+
+        noBikes.classList.remove("hidden");
+
+        return;
+
+      }
+
+
+
+      bikeSelect.innerHTML =
+        bikes.map(
+          b => `
+
+<option value="${b.id}">
+
+${b.bike_name}
+-
+${b.company}
+(${b.registration_number})
+
+</option>
+
+`
+        ).join("");
+
+
+
+      form.classList.remove("hidden");
+
+
+    }
+
+
+
+
+
+
+
+    form.addEventListener(
+      "submit",
+      async (e) => {
+
+
+        e.preventDefault();
+
+
+
+        submitBtn.disabled = true;
+
+        submitBtn.textContent = "Booking...";
+
+
+
+        const fd = new FormData(form);
+
+
+
+        const serviceTypes =
+          [
+            ...document.querySelectorAll(
+              'input[name="service_types"]:checked'
+            )
+          ]
+            .map(x => x.value);
+
+
+
+        const parts =
+          [
+            ...document.querySelectorAll(
+              'input[name="parts_required"]:checked'
+            )
+          ]
+            .map(x => x.value);
+
+
+
+
+
+        try {
+
+
+          await apiFetch(
+            "/api/bookings",
+            {
+
+              method: "POST",
+
+              body: {
+
+                bike_id:
+                  fd.get("bike_id"),
+
+
+                service_date:
+                  fd.get("service_date"),
+
+
+                service_types:
+                  serviceTypes,
+
+
+                parts_required:
+                  parts
+
+              }
+
+
+            }
+
+          );
+
+
+
+          window.location.href =
+            "/customer/my-bookings.html";
+
+
+
+        }
+
+        catch (err) {
+
+
+          showAlert(
+            alertEl,
+            err.message
+          );
+
+
+          submitBtn.disabled = false;
+
+          submitBtn.textContent =
+            "Book Service";
+
+
+        }
+
+
+
+      }
+
+    );
+
+
+
+
+
+    loadBikes();
+
+
+  </script>
+
+
+</body>
+
+</html>

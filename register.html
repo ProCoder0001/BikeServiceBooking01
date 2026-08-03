@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Register — Bike Service Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="/index.html" class="brand"><span class="dot"></span> Bike Service Booking</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+</header>
+
+<div class="auth-wrap">
+  <div class="card card-wide">
+    <h2>Create an account</h2>
+    <p class="subtitle">Register as a customer to book services, or as an admin to manage the workshop.</p>
+
+    <div class="role-toggle">
+      <button type="button" class="active" data-role="customer">Customer</button>
+      <button type="button" data-role="admin">Admin</button>
+    </div>
+
+    <div id="alert" class="alert"></div>
+
+    <form id="register-form">
+      <div class="form-grid">
+        <div class="field">
+          <label>First name</label>
+          <input type="text" name="first_name" required />
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input type="text" name="last_name" required />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" name="email" required />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" name="password" minlength="6" required />
+        </div>
+        <div class="field">
+          <label>Gender</label>
+          <select name="gender">
+            <option value="">Select</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Contact no</label>
+          <input type="text" name="contact_no" />
+        </div>
+        <div class="field">
+          <label>Age</label>
+          <input type="number" name="age" min="1" />
+        </div>
+        <div class="field">
+          <label>City</label>
+          <input type="text" name="city" />
+        </div>
+        <div class="field full">
+          <label>Street</label>
+          <input type="text" name="street" />
+        </div>
+        <div class="field">
+          <label>Pincode</label>
+          <input type="text" name="pincode" />
+        </div>
+        <div class="field full hidden" id="admin-code-field">
+          <label>Admin code</label>
+          <input type="password" name="admin_code" autocomplete="off" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Register</button>
+      <div class="form-foot">Already have an account? <a href="/login.html">Login</a></div>
+    </form>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  let role = "customer";
+  const adminCodeField = document.getElementById("admin-code-field");
+  document.querySelectorAll(".role-toggle button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".role-toggle button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      role = btn.dataset.role;
+      adminCodeField.classList.toggle("hidden", role !== "admin");
+    });
+  });
+
+  const form = document.getElementById("register-form");
+  const alertEl = document.getElementById("alert");
+  const submitBtn = document.getElementById("submit-btn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertEl.classList.remove("show");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Registering…";
+
+    const fd = new FormData(form);
+    const payload = {
+      role,
+      first_name: fd.get("first_name"),
+      last_name: fd.get("last_name"),
+      email: fd.get("email"),
+      password: fd.get("password"),
+      gender: fd.get("gender") || null,
+      contact_no: fd.get("contact_no") || null,
+      age: fd.get("age") ? Number(fd.get("age")) : null,
+      street: fd.get("street") || null,
+      city: fd.get("city") || null,
+      pincode: fd.get("pincode") || null,
+      admin_code: role === "admin" ? fd.get("admin_code") : null,
+    };
+
+    try {
+      const data = await apiFetch("/api/auth/register", { method: "POST", body: payload, auth: false });
+      Session.setSession(data.access_token, data.user);
+      window.location.href = role === "admin" ? "/admin/all-bookings.html" : "/customer/my-bikes.html";
+    } catch (err) {
+      showAlert(alertEl, err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Register";
+    }
+  });
+</script>
+</body>
+</html>
